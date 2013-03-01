@@ -244,17 +244,13 @@ module ResqueScheduler
     # delayed job tasks and do our matching after decoding the payload data
     Array(redis.zrange(:delayed_queue_schedule, 0, -1)).each do |timestamp|
       job = "delayed:#{timestamp}"
-      index = redis.llen(job) - 1
-      while index >= 0
-        payload = redis.lindex(job, index)
+      jobs = Array(redis.lrange(job, 0, -1))
+
+      jobs.select do |payload|
         decoded_payload = decode(payload)
-        if (klass.nil? || decoded_payload['class'] == klass.to_s) && yield(decoded_payload['args'])
-          removed = redis.lrem job, 0, payload
-          destroyed += removed
-          index -= removed
-        else
-          index -= 1
-        end
+        (klass.nil? || decoded_payload['class'] == klass.to_s) && yield(decoded_payload['args'])
+      end.each do |payload|
+        destroyed += redis.lrem job, 0, payload
       end
     end
     destroyed
