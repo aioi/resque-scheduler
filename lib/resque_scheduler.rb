@@ -236,7 +236,7 @@ module ResqueScheduler
   # Given a block, remove jobs that return true from a block
   #
   # This allows for removal of delayed jobs that have arguments matching certain criteria
-  def remove_delayed_selection
+  def remove_delayed_selection(klass=nil, &block)
     raise ArgumentError, "Please supply a block" unless block_given?
 
     destroyed = 0
@@ -248,7 +248,7 @@ module ResqueScheduler
       while index >= 0
         payload = redis.lindex(job, index)
         decoded_payload = decode(payload)
-        if yield(decoded_payload['args'])
+        if (klass.nil? || decoded_payload['class'] == klass.to_s) && yield(decoded_payload['args'])
           removed = redis.lrem job, 0, payload
           destroyed += removed
           index -= removed
