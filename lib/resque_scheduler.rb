@@ -242,11 +242,11 @@ module ResqueScheduler
     destroyed = 0
     # There is no way to search Redis list entries for a partial match, so we query for all
     # delayed job tasks and do our matching after decoding the payload data
-    jobs = Resque.redis.keys("delayed:*")
-    jobs.each do |job|
-      index = Resque.redis.llen(job) - 1
+    Array(redis.zrange(:delayed_queue_schedule, 0, -1)).each do |timestamp|
+      job = "delayed:#{timestamp}"
+      index = redis.llen(job) - 1
       while index >= 0
-        payload = Resque.redis.lindex(job, index)
+        payload = redis.lindex(job, index)
         decoded_payload = decode(payload)
         if yield(decoded_payload['args'])
           removed = redis.lrem job, 0, payload
